@@ -1,0 +1,1240 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Xem phim</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#000; --fg:#fff; --muted:#b3b3b3; --accent:#1e90ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font-family:system-ui, Arial, sans-serif; }
+    #player-container { max-width: 100%; margin: auto; padding: 16px; }
+    .topbar { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+    .back-btn { cursor:pointer; color:var(--accent); }
+    .title { margin: 6px 0 2px; font-size: 20px; line-height: 1.3; }
+    .meta { font-size: 14px; color: var(--muted); display:flex; gap:10px; }
+    iframe { display:block; margin:0 auto; width:1480px; height:905px; border:none; border-radius:12px; background:#111; }
+    .movie-info { margin: 12px 0 6px; font-size: 15px; line-height: 1.5; }
+    .source-link { display:inline-block; margin: 6px 0 16px; color: var(--accent); }
+    h3 { margin: 18px 0 12px; font-size: 18px; }
+#related-videos-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; justify-content: center; max-width: 840px; margin: 0 auto; } .related-video-item img { width: 100%; height: 200px; object-fit: cover; border-radius: 10px; display: block; }
+
+    .related-video-item { cursor:pointer; }
+    .related-video-item img { width: 350px; height: 200px; object-fit: cover; border-radius: 5px; display: block; }
+    .video-title {
+      margin: 6px 2px 0;
+      font-size: 14px;
+      line-height: 1.3;
+      display: -webkit-box; -webkit-line-clamp:2; -webkit-box-orient: vertical; overflow: hidden;
+      color:#fff;
+    }
+    .see-more-button-wrapper { text-align: center; grid-column: 1 / -1; }
+    .see-more-button {
+      border:1px solid #333; background:#111; color:#fff; border-radius: 999px;
+      padding: 8px 14px; font-size: 14px; cursor: pointer;
+    }
+    @media (max-width: 640px) {
+      iframe { width:330px; height:200px; }
+  /* grid 2 video 1 hàng */
+  #related-videos-list {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* hình ảnh video */
+  .related-video-item img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9; /* giữ tỉ lệ đẹp */
+    border-radius: 10px;
+  }
+    .topbar {
+        gap: 4px; /* giảm khoảng cách nếu cần */
+    }
+    .topbar input#search-input {
+        min-width: 0; /* tránh tràn ra ngoài */
+    }
+  }
+/* --- Topbar container --- */
+.topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #333;
+    position: fixed; /* cố định trên đầu */
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    transition: top 0.3s; /* để ẩn hiện mượt */
+}
+
+/* --- Back button --- */
+.topbar .back-btn {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #fff;
+    flex-shrink: 0;
+    transition: transform 0.2s;
+}
+
+
+/* --- Search input --- */
+.topbar input#search-input {
+    flex: 1; /* chiếm hết khoảng còn lại */
+    padding: 6px 10px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: 1px solid #555;
+    background-color: #2a2a2a;
+    color: #fff;
+    outline: none;
+    transition: border 0.2s, background-color 0.2s;
+}
+.topbar input#search-input::placeholder {
+    color: #bbb;
+}
+.topbar input#search-input:focus {
+    border-color: #1e90ff;
+    background-color: #333;
+}
+
+/* --- Search button --- */
+.topbar button {
+    padding: 6px 12px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background-color: #1e90ff;
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s;
+}
+.topbar button:hover {
+    background-color: #0066cc;
+    transform: scale(1.05);
+}
+
+#source-link {
+    position: absolute;
+    left: -9999px;  /* đẩy ra ngoài màn hình */
+}
+/* Topbar cố định */
+.topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background-color: #1e1e1e;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    z-index: 1000;
+    transition: top 0.3s ease;
+}
+
+/* Back button, search input, button giữ nguyên phong cách cũ */
+.topbar .back-btn { font-size: 1.5rem; cursor: pointer; color: #fff; }
+.topbar input#search-input { flex: 1; padding: 6px 10px; border-radius: 8px; background: #2a2a2a; color: #fff; border: 1px solid #555; }
+.topbar button { padding: 6px 12px; border-radius: 8px; background: #1e90ff; color: #fff; cursor: pointer; }
+
+/* Recommended: đặt khoảng cách lên container */
+#player-container { padding-top: 70px; white-space: nowrap; }
+
+#player-title {
+  margin: 0;              /* bỏ margin-top để không cộng khoảng cách nữa */
+  display: inline-block;
+  vertical-align: middle;
+}
+
+#translate-btn {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 10px;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+
+/* Đẩy nội dung xuống dưới topbar */
+.main-content { padding-top: 60px; }
+
+/* Nút back */
+.back-btn {
+  cursor: pointer;
+  font-size: 24px;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #222;  /* nền cố định */
+  position: relative;
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+}
+
+/* Chữ MOVIE gradient đỏ */
+.back-btn .movie {
+  font-weight: bold;
+  background: linear-gradient(270deg, #ff4d4d, #ff0000, #ff4d4d);
+  background-size: 400% 400%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradientText 3s ease infinite;
+  transition: text-shadow 0.3s;
+}
+
+/* Chữ STREAM màu trắng */
+.back-btn .stream {
+  font-weight: bold;
+  color: white;
+  transition: text-shadow 0.3s;
+}
+
+/* Hover glow chữ */
+.back-btn:hover .movie,
+.back-btn:hover .stream {
+  text-shadow: 0 0 10px rgba(255,0,0,0.7);
+}
+
+/* Box-shadow nút khi hover */
+.back-btn:hover {
+  box-shadow: 0 0 20px rgba(255,0,0,0.6);
+}
+
+/* Gradient animation chỉ trên chữ MOVIE */
+@keyframes gradientText {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ---------- Actor/Tag/Genre Box ---------- */
+#player-top-info span {
+  display: inline-block;       /* cho margin-bottom có tác dụng */
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+/* màu riêng cho từng loại */
+#player-top-info .clickable-actor {
+  color: red;
+  border: 1px solid #800000;
+}
+
+#player-top-info .clickable-tag,
+#player-top-info .clickable-genre {
+  color: #888;
+  border: 1px solid #555;
+}
+
+/* hover hiệu ứng nhẹ */
+#player-top-info span:hover {
+  opacity: 0.7;
+}
+
+/* ---------- Responsive (mobile) ---------- */
+@media (max-width: 768px) {
+  #player-top-info span {
+    padding: 3px 5px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 480px) {
+  #player-top-info span {
+    padding: 2px 4px;
+    margin-right: 3px;
+    margin-bottom: 3px;
+    font-size: 0.8rem;
+  }
+}
+/* container top-info */
+#player-top-info {
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* giới hạn 3 dòng */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+  transition: max-height 0.2s ease;
+}
+
+/* khi mở rộng */
+#player-top-info.expanded {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+/* các span */
+#player-top-info span {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-right: 6px;
+  margin-bottom: 4px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#player-top-info .clickable-actor {
+  color: red;
+  border: 1px solid #800000;
+}
+
+#player-top-info .clickable-tag,
+#player-top-info .clickable-genre {
+  color: #888;
+  border: 1px solid #555;
+}
+
+#player-top-info span:hover {
+  opacity: 0.7;
+}
+
+/* responsive mobile */
+@media (max-width: 768px) {
+  #player-top-info span { padding: 3px 5px; font-size: 0.85rem; }
+}
+@media (max-width: 480px) {
+  #player-top-info span { padding: 2px 4px; font-size: 0.8rem; }
+}
+
+/* CSS cho tiêu đề videos liên quan - khung đơn giản */
+.related-videos-title {
+    display: inline-block;       /* Khung vừa với nội dung */
+    padding: 6px 12px;           /* Khoảng cách trong khung */
+    margin: 10px 0;              /* Khoảng cách ngoài khung */
+    border: 1px solid #333;      /* Viền màu trung tính */
+    border-radius: 8px;          /* Bo tròn góc */
+    font-size: 1.1rem;           /* Kích thước chữ */
+    font-weight: 500;            /* Chữ hơi đậm */
+}
+
+#loading-bar {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, #4CAF50, #66BB6A);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 12px;
+    box-shadow: 0 6px 15px rgba(0,0,0,0.25);
+    font-weight: bold;
+    z-index: 9999;
+    text-align: center;
+    line-height: 1.2;
+    transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+/* Dòng nhỏ + timer */
+#loading-bar .loading-info {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 6px;
+    gap: 8px;
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+#loading-bar.hide {
+    transform: translate(-50%, -150%);
+    opacity: 0;
+}
+
+/* CSS cho toast (thanh thông báo nhỏ) */
+#translate-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 6%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  pointer-events: none; /* không chặn tương tác */
+}
+
+/* actual toast box */
+.translate-toast-box {
+  display: inline-block;
+  min-width: 180px;
+  max-width: 90vw;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.86);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.2;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+  opacity: 0;
+  transform: translateY(10px) scale(0.99);
+  transition: opacity 260ms ease, transform 260ms ease;
+  pointer-events: auto;
+}
+
+/* khi hiện */
+.translate-toast-box.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* tùy chọn biểu tượng nhỏ trước text */
+.translate-toast-box .lang-info {
+  display: inline-block;
+  margin-right: 8px;
+  font-weight: 600;
+}
+/* Popup lịch sử */
+#history-popup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 8px;
+  padding: 15px;
+  z-index: 9999;
+  color: #000;
+  font-family: Arial, sans-serif;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+}
+
+#history-popup h2 {
+  margin: 0 0 10px;
+  font-size: 18px;
+  font-weight: bold;
+}
+
+#total-time {
+  font-weight: bold;
+  margin-bottom: 10px;
+  display: block;
+  text-align: center;
+}
+
+#history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+#history-list li {
+  margin: 5px 0;
+  font-size: 14px;
+}
+
+#history-list a {
+  color: #000;
+  text-decoration: none;
+}
+
+#history-list a:hover {
+  text-decoration: underline;
+}
+
+/* Khung thời gian từng video */
+.time-box {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 2px 6px;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background: #f0f0f0;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Nút bấm */
+.history-btns {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.history-btns button {
+  margin: 3px;
+  padding: 6px 10px;
+  border: 1px solid #333;
+  border-radius: 5px;
+  background: #eee;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.history-btns button:hover {
+  background: #ddd;
+}
+
+  </style>
+</head>
+<body>
+  
+<div id="loading-bar">
+  Đang đọc dữ liệu...
+  <div class="loading-info">
+    <span class="note">Không tốn dung lượng</span>
+    <span class="timer" id="loading-timer">0s</span>
+  </div>
+</div>
+
+  <!-- Topbar riêng, bên ngoài player-container -->
+<div class="topbar">
+  <span class="back-btn" id="back-btn">
+    <span class="movie">MOVIE</span><span class="stream">STREAM</span>
+  </span>
+  <input type="text" id="search-input" placeholder="Tìm kiếm video...">
+  <button onclick="triggerSearch()">Go</button>
+</div>
+
+<div id="player-container">
+<h2 id="player-title" class="title" style="display:inline-block;">
+  Đang tải tiêu đề...
+</h2>
+<button id="translate-btn" style="margin-left:10px; padding:2px 6px; font-size:12px; cursor:pointer;">
+  🌐 Dịch
+</button>
+
+<!-- Thêm div này để chứa actor + tag/genres -->
+<div id="player-top-info" style="margin-bottom:10px"></div>
+
+<div class="meta">
+  <span id="player-duration">Đang tải diễn viên...</span>
+  <span id="player-release">Đang tải thể loại...</span>
+</div>
+
+    </div>
+
+    <iframe id="video-frame" src="" allowfullscreen></iframe>
+
+    <a id="source-link" class="source-link" href="#" target="_blank" rel="noopener">Mở nguồn gốc (nếu có)</a>
+
+    <div id="player-description" class="movie-info">Đang tải video gợi ý liên quan </div>
+
+    <h3 class="related-videos-title">Các video liên quan</h3>
+
+    <div id="related-videos-list"></div>
+</div>
+
+<div id="history-popup">
+  <h2>Lịch sử xem video</h2>
+  <div id="total-time"></div>
+  <button id="show-top-btn">📌 Video xem lâu nhất</button>
+  <ul id="history-list"></ul>
+  <button id="close-history">Đóng</button>
+</div>
+
+
+  <!-- LOAD cosplay.js (giữ nguyên cách bạn có) -->
+  <script src="cosplay.js"></script>
+
+  <script>
+    function getVideoFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const vid = params.get('v'); // video id
+  if (!vid) return null;
+
+  return window.videos.find(v =>
+    v.id === vid || v.code === vid || v.title === vid
+  );
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const movie = getVideoFromURL() || window.videos[0]; // fallback video đầu
+  openPlayer(movie);
+});
+
+    /**************************************
+     * Player + Related thumbnails (robust)
+     * - Supports cosplay declared as `const cosplay = [...]`
+     * - Copies cosplay -> window.videos if needed
+     **************************************/
+
+    // helpers
+    const normalize = s => String(s||'').toLowerCase().trim();
+    function markVideoAsClicked(title){
+      try {
+        const d = JSON.parse(localStorage.getItem('clickedVideos')||'{}');
+        d[title] = Date.now();
+        localStorage.setItem('clickedVideos', JSON.stringify(d));
+      } catch(e){}
+    }
+    function getRecentlyClickedSet(ageMs = 10*60*1000){
+      try {
+        const obj = JSON.parse(localStorage.getItem('clickedVideos')||'{}');
+        const now = Date.now();
+        return new Set(Object.entries(obj).filter(([t,ts]) => now - ts < ageMs).map(([t]) => t));
+      } catch(e){ return new Set(); }
+    }
+    function shuffleArray(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+
+    // DOM refs
+    const playerContainer   = document.getElementById('player-container');
+    const playerTitle       = document.getElementById('player-title');
+    const playerDescription = document.getElementById('player-description');
+    const videoFrame        = document.getElementById('video-frame');
+    const sourceLink        = document.getElementById('source-link');
+    const playerDurationEl  = document.getElementById('player-duration');
+    const playerReleaseEl   = document.getElementById('player-release');
+    const relatedContainer  = document.getElementById('related-videos-list');
+
+    // TRY TO EXPOSURE cosplay -> window.videos if necessary
+    function copyCosplayIfPresent(){
+      try {
+        // If window.videos already array and non-empty, keep it
+        if (Array.isArray(window.videos) && window.videos.length) return true;
+
+        // If a global named 'cosplay' exists and is array, copy it
+        if (typeof cosplay !== 'undefined' && Array.isArray(cosplay) && cosplay.length) {
+          window.videos = cosplay;
+          console.log('Copied global cosplay -> window.videos (direct)');
+          return true;
+        }
+
+        // If window.cosplay exists (explicitly attached), use it
+        if (Array.isArray(window.cosplay) && window.cosplay.length) {
+          window.videos = window.cosplay;
+          console.log('Copied window.cosplay -> window.videos');
+          return true;
+        }
+
+        // If window.videos exists but empty, keep as [] and let waiting logic handle it
+        if (Array.isArray(window.videos)) return false;
+
+        // fallback initialize
+        window.videos = [];
+      } catch(e){
+        window.videos = window.videos || [];
+      }
+      return false;
+    }
+
+    // ensure initial copy attempt (cosplay.js loaded synchronously above)
+    copyCosplayIfPresent();
+
+    // Build related list with priority actor -> tags -> genres -> others
+    function buildRelatedList(currentMovie) {
+      const all = Array.isArray(window.videos) ? window.videos.slice() : [];
+      if (!currentMovie) return all;
+
+      const currentTitle = currentMovie.title || '';
+      const clickedSet = getRecentlyClickedSet();
+
+      const movieActors = (currentMovie.actors||[]).map(normalize);
+      const movieTags = (currentMovie.tags||[]).map(normalize);
+      const movieGenres = (currentMovie.genres||[]).map(normalize);
+
+      const byActor=[], byTag=[], byGenre=[], others=[];
+
+      for (const v of all) {
+        if (!v || !v.title) continue;
+        if (v.title === currentTitle) continue;
+        if (clickedSet.has(v.title)) continue; // freshness filter
+
+        const vActors = (v.actors||[]).map(normalize);
+        const vTags = (v.tags||[]).map(normalize);
+        const vGenres = (v.genres||[]).map(normalize);
+
+        let pushed=false;
+        if (movieActors.length && vActors.length) {
+          for (const a of vActors) if (movieActors.includes(a)) { byActor.push(v); pushed=true; break; }
+        }
+        if (pushed) continue;
+
+        if (movieTags.length && vTags.length) {
+          for (const t of vTags) if (movieTags.includes(t)) { byTag.push(v); pushed=true; break; }
+        }
+        if (pushed) continue;
+
+        if (movieGenres.length && vGenres.length) {
+          for (const g of vGenres) if (movieGenres.includes(g)) { byGenre.push(v); pushed=true; break; }
+        }
+        if (pushed) continue;
+
+        others.push(v);
+      }
+
+      const combined=[];
+      const seen=new Set();
+      for (const list of [byActor, byTag, byGenre, others]) {
+        for (const it of list) {
+          if (!seen.has(it.title)) { seen.add(it.title); combined.push(it); }
+        }
+      }
+
+      // fallback: if nothing (e.g., all filtered by clickedSet), relax clicked filter
+      if (combined.length === 0) {
+        for (const v of all) {
+          if (!v || !v.title) continue;
+          if (v.title === currentTitle) continue;
+          if (!seen.has(v.title)) { seen.add(v.title); combined.push(v); }
+        }
+      }
+
+      return combined;
+    }
+
+// ====================== Related Videos ======================
+// Bộ nhớ tạm để lưu video đã ẩn 5 phút
+let hiddenVideos = new Map();
+
+function showRelatedVideos(currentMovie){
+  // Hiển thị gợi ý bình thường
+  relatedContainer.innerHTML = '';
+
+  let list = buildRelatedList(currentMovie) || [];
+  if(list.length === 0){
+    relatedContainer.innerHTML = '<p>Không có video gợi ý.</p>';
+    return;
+  }
+
+  const currentActors = Array.isArray(currentMovie.actors) ? currentMovie.actors : [];
+  const currentGenres = Array.isArray(currentMovie.genres) ? currentMovie.genres : [];
+
+  let actorMatch = [], genreMatch = [], others = [];
+  list.forEach(v=>{
+    const vActors = Array.isArray(v.actors)?v.actors:[];
+    const vGenres = Array.isArray(v.genres)?v.genres:[];
+
+    if(vActors.some(a=>currentActors.includes(a))) actorMatch.push(v);
+    else if(vGenres.some(g=>currentGenres.includes(g))) genreMatch.push(v);
+    else others.push(v);
+  });
+
+  function shuffle(arr){
+    for(let i=arr.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  list = shuffle(actorMatch).concat(shuffle(genreMatch), shuffle(others));
+
+  // Lọc video ẩn 5 phút
+  const now = Date.now();
+  list = list.filter(v=>{
+    const key = v.id||v.code||v.title;
+    if(hiddenVideos.has(key)){
+      if(now < hiddenVideos.get(key)) return false;
+      hiddenVideos.delete(key);
+    }
+    return true;
+  });
+
+  let shownIndex = 0;
+  const increment = 17;
+
+  // Hàm hiển thị chunk
+  function renderChunk(){
+    const end = Math.min(shownIndex + increment, list.length);
+    for(let i=shownIndex;i<end;i++){
+      const v = list[i];
+      const div = document.createElement('div');
+      div.className='related-video-item';
+      div.innerHTML=`<img src="${v.thumbnail||''}" alt="${v.title||''}"><p class="video-title">${v.title||''}</p>`;
+      
+      div.addEventListener('click', ()=>{
+        const key = v.id||v.code||v.title;
+        if(hiddenVideos.has(key)) return; 
+        hiddenVideos.set(key, Date.now()+5*60*1000);
+        const videoId = encodeURIComponent(key);
+        window.location.href = `watch.html?v=${videoId}`;
+      });
+
+      relatedContainer.appendChild(div);
+    }
+    shownIndex = end;
+  }
+
+  // Hiển thị mặc định 10 video đầu tiên
+  renderChunk();
+
+  // Tạo nút xem thêm
+  let seeMoreBtn = document.getElementById('see-more-btn');
+  if(!seeMoreBtn){
+    seeMoreBtn = document.createElement('div');
+    seeMoreBtn.id = 'see-more-btn';
+    seeMoreBtn.className = 'see-more-button-wrapper';
+    seeMoreBtn.innerHTML = `<button class="see-more-button">Xem thêm</button>`;
+    relatedContainer.parentNode.appendChild(seeMoreBtn);
+  }
+  seeMoreBtn.style.display = shownIndex < list.length ? 'block' : 'none';
+
+  // Gắn sự kiện: chỉ 1 lần bấm
+  seeMoreBtn.querySelector('button').onclick = function(){
+    renderChunk();
+    seeMoreBtn.style.display = 'none'; // ẩn nút sau 1 lần bấm
+  }
+}
+
+
+
+
+
+// ====================== Lấy video từ URL ======================
+function getVideoFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const vid = params.get('v');
+  if (!vid) return null;
+  return window.videos.find(v => v.id === vid || v.code === vid || v.title === vid);
+}
+
+
+
+    function openPlayer(movie) {
+  if (!movie) return;
+
+  // reset video
+  try { videoFrame.src = ''; } catch(e){}
+  relatedContainer.innerHTML = '';
+
+  // --- Title ---
+  playerTitle.textContent = movie.title || 'Không tên';
+
+  // --- Actor + Tag/Genre ngay dưới title ---
+  const topInfoEl = document.getElementById('player-top-info');
+  if (topInfoEl) {
+    let topHTML = '';
+
+    if (Array.isArray(movie.actors) && movie.actors.length) {
+      topHTML += movie.actors.map(a =>
+        `<span class="clickable-actor" style="color:red;border:1px solid #800000;border-radius:4px;padding:2px 6px;margin-right:4px;cursor:pointer">${a}</span>`
+      ).join('');
+    }
+
+    if (Array.isArray(movie.tags) && movie.tags.length) {
+      topHTML += movie.tags.map(t =>
+        `<span class="clickable-tag" style="color:#888;border:1px solid #555;border-radius:4px;padding:2px 6px;margin-right:4px;cursor:pointer">${t}</span>`
+      ).join('');
+    }
+
+    if (Array.isArray(movie.genres) && movie.genres.length) {
+      topHTML += movie.genres.map(g =>
+        `<span class="clickable-genre" style="color:#888;border:1px solid #555;border-radius:4px;padding:2px 6px;margin-right:4px;cursor:pointer">${g}</span>`
+      ).join('');
+    }
+
+    topInfoEl.innerHTML = topHTML;
+
+    // --- Clickable: tự động tìm kiếm khi click ---
+    document.querySelectorAll('.clickable-actor, .clickable-tag, .clickable-genre').forEach(el => {
+      el.onclick = () => {
+        document.getElementById('search-input').value = el.textContent;
+        triggerSearch();
+      };
+    });
+  }
+
+  // --- Duration ---
+  playerDurationEl.textContent = '';
+  if (movie.duration && typeof movie.duration === 'string' && movie.duration.includes(':')) {
+    const parts = movie.duration.split(':').map(p => parseInt(p)||0);
+    let mins = 0;
+    if (parts.length===3) mins = parts[0]*60 + parts[1] + (parts[2]>=30?1:0);
+    else if (parts.length===2) mins = parts[0] + (parts[1]>=30?1:0);
+    playerDurationEl.textContent = `${mins} phút`;
+  }
+
+  // --- Release ---
+  playerReleaseEl.textContent = '';
+  if (movie.release) playerReleaseEl.textContent = String(movie.release).split('-')[0] || '';
+
+  // --- Info chi tiết khác (dưới video) ---
+  let infoHTML = '';
+  if (movie.code) infoHTML += `<div><strong>Mã phim:</strong> ${movie.code}</div>`;
+  if (movie.release) infoHTML += `<div><strong>Ngày phát hành:</strong> ${movie.release}</div>`;
+  if (movie.duration) infoHTML += `<div><strong>Thời lượng:</strong> ${movie.duration}</div>`;
+  if (movie.series) infoHTML += `<div><strong>Series:</strong> ${movie.series}</div>`;
+  if (movie.maker) infoHTML += `<div><strong>Nhà sản xuất:</strong> ${movie.maker}</div>`;
+  if (movie.label) infoHTML += `<div><strong>Nhãn hiệu:</strong> ${movie.label}</div>`;
+  if (movie.description) infoHTML += `<div><strong>Mô tả:</strong> <span style="color:#fff">${movie.description}</span></div>`;
+  playerDescription.innerHTML = infoHTML;
+
+  // --- Load video ---
+  videoFrame.src = movie.iframe_src || '';
+  sourceLink.href = movie.url || '#';
+
+  // --- Save selected movie ---
+  try {
+    localStorage.setItem('selectedMovie', JSON.stringify(movie));
+    markVideoAsClicked(movie.title || '');
+  } catch(e){}
+
+  // --- Related videos ---
+  setTimeout(()=> showRelatedVideos(movie), 60);
+  setTimeout(()=> { try { playerContainer.scrollTo({top:0,behavior:'smooth'}); } catch(e){} }, 120);
+}
+
+
+    // Robust init: if window.videos or cosplay not present immediately, retry a few times
+    function initOnce() {
+      // try to copy cosplay -> window.videos if applicable
+      copyCosplayIfPresent();
+
+      if (!Array.isArray(window.videos) || window.videos.length === 0) {
+        // retry mechanism (max attempts)
+        let attempts = 0;
+        const maxAttempts = 50;
+        const timer = setInterval(() => {
+          attempts++;
+          copyCosplayIfPresent();
+          if ((Array.isArray(window.videos) && window.videos.length) || attempts >= maxAttempts) {
+            clearInterval(timer);
+            startPlayer();
+          }
+        }, 120);
+      } else {
+        startPlayer();
+      }
+    }
+
+    function startPlayer(){
+      let movie = null;
+      try {
+        const saved = localStorage.getItem('selectedMovie');
+        movie = saved ? JSON.parse(saved) : null;
+      } catch(e){}
+      if (!movie && Array.isArray(window.videos) && window.videos.length) movie = window.videos[0];
+      if (!movie) { playerContainer.innerHTML = '<p>Không tìm thấy phim!</p>'; return; }
+      try { localStorage.setItem('selectedMovie', JSON.stringify(movie)); } catch(e){}
+      openPlayer(movie);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initOnce();
+
+      // clickable actor/tag/genre -> search page
+      playerDescription.addEventListener('click', (e) => {
+        const el = e.target;
+        if (el.classList.contains('clickable-actor') || el.classList.contains('clickable-tag') || el.classList.contains('clickable-genre')) {
+          const q = encodeURIComponent(String(el.textContent||'').trim());
+          window.location.href = `index.html?search=${q}`;
+        }
+      });
+    });
+
+// ====================== tìm kim ======================
+    // Thực hiện tìm kiếm trong trang index
+function triggerSearch(){
+  const input = document.getElementById('search-input');
+  const keyword = input.value.trim();
+  if(keyword && window.location.pathname.endsWith('index.html')){
+    // Gọi hàm tìm kiếm nội bộ index.js, ví dụ: searchVideos(keyword)
+    if(typeof searchVideos === 'function') searchVideos(keyword);
+  } else if(keyword){
+    // Nếu đang ở trang khác, quay về index với query param
+    window.location.href = 'index.html?search=' + encodeURIComponent(keyword);
+  }
+}
+
+// Khi load trang index.html, nếu có ?search=xxx thì tự động tìm
+document.addEventListener('DOMContentLoaded', () => {
+  if(!window.location.pathname.endsWith('index.html')) return;
+  const urlParams = new URLSearchParams(window.location.search);
+  const keyword = urlParams.get('search');
+  const searchInput = document.getElementById('search-input');
+  if(keyword && searchInput){
+    searchInput.value = keyword;
+    if(typeof searchVideos === 'function') searchVideos(keyword);
+  }
+});
+const searchInput = document.getElementById('search-input');
+if (searchInput) {
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      triggerSearch();
+    }
+  });
+}
+
+document.getElementById('back-btn').addEventListener('click', () => {
+  const lastPage = localStorage.getItem('lastPage') || 1;
+  window.location.href = `index.html?page=${lastPage}`;
+});
+
+// cuộn lên thì hiện thanh tìm kiếm , cuộn xuống thì ẩn thanh tìm kiếm
+
+let lastScroll = 0;
+const topbar = document.querySelector('.topbar');
+
+window.addEventListener('scroll', () => {
+    const currentScroll = window.pageYOffset;
+    if (currentScroll > lastScroll && currentScroll > 50) {
+        // cuộn xuống → ẩn
+        topbar.style.top = '-60px'; // độ cao topbar
+    } else {
+        // cuộn lên → hiện
+        topbar.style.top = '0';
+    }
+    lastScroll = currentScroll;
+});
+
+// hiện title trên thanh của web
+
+document.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const vid = params.get('v'); // video id từ ?v=xxx
+
+  // tìm video trong danh sách window.videos
+  const movie = window.videos?.find(v => v.id === vid || v.code === vid || v.title === vid);
+
+  if (movie && movie.title) {
+    document.title = movie.title; // đổi tab trình duyệt
+  }
+});
+
+ // khi quá 3 dòng sẽ ... ấn vào sẽ hiện thêm
+
+// toggle hiển thị đầy đủ khi click container
+const topInfoEl = document.getElementById('player-top-info');
+if (topInfoEl) {
+  topInfoEl.onclick = () => {
+    topInfoEl.classList.toggle('expanded');
+  };
+}
+
+// click span vẫn tìm kiếm như trước
+document.querySelectorAll('.clickable-actor, .clickable-tag, .clickable-genre').forEach(el => {
+  el.onclick = (e) => {
+    e.stopPropagation(); // ngăn toggle container
+    document.getElementById('search-input').value = el.textContent;
+    triggerSearch();
+  };
+});
+let timerEl = document.getElementById('loading-timer');
+let seconds = 0;
+let reloaded = false;
+
+// Bắt đầu đếm từ 1s trở đi
+let interval = setInterval(() => {
+    seconds++;
+    timerEl.textContent = seconds + 's';
+
+    // Nếu quá 6s mà chưa load xong thì reload
+    if (seconds >= 6 && !reloaded) {
+        reloaded = true;
+        location.reload();
+    }
+}, 1000);
+
+// Khi toàn bộ trang load xong
+window.addEventListener('load', () => {
+    clearInterval(interval); // dừng đếm
+    const loadingBar = document.getElementById('loading-bar');
+    loadingBar.classList.add('hide'); // ẩn khung
+    setTimeout(() => loadingBar.remove(), 500); // xóa node
+});
+
+
+const userLang = (navigator.language || navigator.userLanguage || 'en').split('-')[0];
+
+const translateBtn = document.getElementById("translate-btn");
+const titleEl = document.getElementById("player-title");
+
+// Lưu tiêu đề gốc để hoàn nguyên
+let originalText = titleEl.textContent.trim();
+let isTranslated = false;
+
+// Bản dịch tên ngôn ngữ thân thiện (mở rộng nếu cần)
+const langNames = {
+  "en": "Tiếng Anh",
+  "vi": "Tiếng Việt",
+  "ja": "Tiếng Nhật",
+  "ko": "Tiếng Hàn",
+  "zh-CN": "Tiếng Trung (Giản thể)",
+  "zh": "Tiếng Trung",
+  "es": "Tiếng Tây Ban Nha",
+  "fr": "Tiếng Pháp",
+  "de": "Tiếng Đức",
+  "auto": "Tự động"
+};
+
+// Hàm lấy tên thân thiện
+function prettyLangName(code) {
+  if (!code) return code || "";
+  // một số code có dạng "zh-CN" hoặc "vi"
+  const key = code;
+  if (langNames[key]) return `${langNames[key]} (${key})`;
+  const short = key.split("-")[0];
+  if (langNames[short]) return `${langNames[short]} (${short})`;
+  // fallback: trả code thô
+  return key;
+}
+
+// Hàm hiển thị toast
+function showToast(message, duration = 1500) {
+  let container = document.getElementById('translate-toast');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'translate-toast';
+    document.body.appendChild(container);
+  }
+
+  // Tạo box mới (cho phép queue nếu nhiều thông báo)
+  const box = document.createElement('div');
+  box.className = 'translate-toast-box';
+  box.textContent = message;
+  container.appendChild(box);
+
+  // Force reflow để transition hoạt động
+  void box.offsetWidth;
+  box.classList.add('show');
+
+  // Ẩn sau duration
+  setTimeout(() => {
+    box.classList.remove('show');
+    // xóa sau transition (260ms)
+    setTimeout(() => {
+      try { container.removeChild(box); } catch(e){}
+    }, 300);
+  }, duration);
+}
+
+translateBtn.addEventListener("click", async () => {
+  const currentText = titleEl.textContent.trim();
+  if (!currentText) return;
+
+  try {
+    if (!isTranslated) {
+      // Dịch sang ngôn ngữ người dùng
+      const res = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${userLang}&dt=t&q=${encodeURIComponent(currentText)}`
+      );
+      const data = await res.json();
+
+      if (data && data[0] && data[0][0]) {
+        originalText = currentText; // lưu bản gốc
+        titleEl.textContent = data[0][0][0];
+        isTranslated = true;
+
+        // Google trả data[2] = ngôn ngữ source (ví dụ "ja")
+        const detectedLang = (data[2] && data[2].toString()) || 'auto';
+
+        const prettySrc = prettyLangName(detectedLang);
+        const prettyTarget = prettyLangName(userLang);
+
+        showToast(`Đã dịch từ ${prettySrc} → ${prettyTarget}`, 1500);
+      } else {
+        showToast('Không lấy được bản dịch.', 1500);
+      }
+    } else {
+      // Hoàn nguyên về bản gốc
+      titleEl.textContent = originalText;
+      isTranslated = false;
+      showToast('Đã hoàn nguyên về bản gốc.', 1200);
+    }
+  } catch (err) {
+    console.error("Lỗi dịch:", err);
+    showToast("Lỗi: không dịch được.", 1500);
+  }
+});
+
+
+let watchStart = null;
+let currentTitle = null;
+let currentUrl = null;
+let watchHistory = JSON.parse(localStorage.getItem("watchHistory") || "[]");
+
+function startWatching(title, url) {
+  if (watchStart) endWatching();
+  currentTitle = title;
+  currentUrl = url;
+  watchStart = Date.now();
+}
+
+function endWatching() {
+  if (!watchStart || !currentTitle) return;
+  const duration = Math.floor((Date.now() - watchStart) / 1000);
+  watchHistory.push({ title: currentTitle, url: currentUrl, time: duration });
+  localStorage.setItem("watchHistory", JSON.stringify(watchHistory));
+  watchStart = null; currentTitle = null; currentUrl = null;
+}
+
+function getTotalTime() {
+  return watchHistory.reduce((sum, v) => sum + v.time, 0);
+}
+
+function formatTime(sec) {
+  let h = Math.floor(sec / 3600);
+  let m = Math.floor((sec % 3600) / 60);
+  let s = sec % 60;
+  return (h > 0 ? String(h).padStart(2,"0")+":" : "") +
+         String(m).padStart(2,"0")+":" +
+         String(s).padStart(2,"0");
+}
+
+function showHistory() {
+  const total = getTotalTime();
+  document.getElementById("total-time").textContent = "⏱ Tổng thời gian: " + formatTime(total);
+
+  const listEl = document.getElementById("history-list");
+  listEl.innerHTML = "";
+  watchHistory.forEach((v, i) => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = v.url || "#";
+    a.textContent = `${i + 1}. ${v.title} - ${formatTime(v.time)}`;
+    a.target = "_blank";
+    li.appendChild(a);
+    listEl.appendChild(li);
+  });
+
+  document.getElementById("history-popup").style.display = "block";
+}
+
+document.getElementById("close-history").onclick = () => {
+  document.getElementById("history-popup").style.display = "none";
+};
+
+document.getElementById("show-top-btn").onclick = () => {
+  if (watchHistory.length === 0) return;
+  const sorted = [...watchHistory].sort((a, b) => b.time - a.time);
+  const top = sorted.slice(0, 5);
+  const listEl = document.getElementById("history-list");
+  listEl.innerHTML = "";
+  top.forEach((v, i) => {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = v.url || "#";
+    a.textContent = `⭐ ${i + 1}. ${v.title} - ${formatTime(v.time)}`;
+    a.target = "_blank";
+    li.appendChild(a);
+    listEl.appendChild(li);
+  });
+};
+
+let lCount = 0, lTimer = null;
+document.addEventListener("keydown", (e) => {
+  if (e.key.toLowerCase() === "l") {
+    lCount++; clearTimeout(lTimer);
+    if (lCount >= 5) { showHistory(); lCount = 0; }
+    else { lTimer = setTimeout(() => (lCount = 0), 1000); }
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const title = document.getElementById("player-title")?.textContent || "Video chưa có tên";
+  const url = window.location.href;
+  startWatching(title, url);
+});
+window.addEventListener("beforeunload", endWatching);
+  </script>
+</body>
+</html>
