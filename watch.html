@@ -482,14 +482,46 @@
   background: #ddd;
 }
 
+#player-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+#player-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* tối đa 3 dòng */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  max-width: 100%;
+}
+
+/* Khi mở rộng */
+#player-title.expanded {
+  -webkit-line-clamp: unset;
+  white-space: normal;
+}
+
+
+#translate-btn {
+  flex-shrink: 0; /* không bị co lại */
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
   </style>
 </head>
 <body>
   
 <div id="loading-bar">
-  Đang đọc dữ liệu...
+  Tải dữ liệu...
   <div class="loading-info">
-    <span class="note">Không tốn dung lượng</span>
+    <span class="note">Thời gian</span>
     <span class="timer" id="loading-timer">0s</span>
   </div>
 </div>
@@ -540,11 +572,44 @@
   <button id="close-history">Đóng</button>
 </div>
 
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" 
+        content="width=device-width, initial-scale=1.0, 
+                 maximum-scale=1.0, minimum-scale=1.0, 
+                 user-scalable=no">
+</head>
 
   <!-- LOAD cosplay.js (giữ nguyên cách bạn có) -->
+  <script src="bigass.js"></script>
+  <script src="blowjob.js"></script>
+  <script src="bigtits.js"></script>
   <script src="cosplay.js"></script>
+  <script src="คลิปหลุดไทย.js"></script>
+  <script src="คาชุดนักศึกษา.js"></script>
+  <script src="thai.js"></script>
 
   <script>
+
+        // Khởi tạo window.videos nếu chưa có
+    window.videos = window.videos || [];
+
+    // Hàm thêm mảng lớn vào target bằng chunk để tránh treo trình duyệt
+    function addVideos(target, source, chunkSize = 10000) {
+        for (let i = 0; i < source.length; i += chunkSize) {
+            const chunk = source.slice(i, i + chunkSize);
+            target.push(...chunk);
+        }
+    }
+
+    // Danh sách các file video đã load
+    const videoFiles = [คลิปหลุดไทย, คาชุดนักศึกษา, thai,];
+
+    // Thêm từng file vào window.videos
+    videoFiles.forEach(file => addVideos(window.videos, file));
+
+    console.log("✅ Tổng số video:", window.videos.length);
+
     function getVideoFromURL() {
   const params = new URLSearchParams(window.location.search);
   const vid = params.get('v'); // video id
@@ -554,10 +619,9 @@
     v.id === vid || v.code === vid || v.title === vid
   );
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-  const movie = getVideoFromURL() || window.videos[0]; // fallback video đầu
-  openPlayer(movie);
+window.addEventListener('load', () => {
+    const movie = getVideoFromURL() || window.videos[0];
+    openPlayer(movie);
 });
 
     /**************************************
@@ -628,6 +692,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ensure initial copy attempt (cosplay.js loaded synchronously above)
     copyCosplayIfPresent();
 
+window.addEventListener('load', () => {
+    const movie = getVideoFromURL() || window.videos[0];
+    openPlayer(movie);
+});
     // Build related list with priority actor -> tags -> genres -> others
     function buildRelatedList(currentMovie) {
       const all = Array.isArray(window.videos) ? window.videos.slice() : [];
@@ -1018,28 +1086,39 @@ document.querySelectorAll('.clickable-actor, .clickable-tag, .clickable-genre').
     triggerSearch();
   };
 });
-let timerEl = document.getElementById('loading-timer');
-let seconds = 0;
-let reloaded = false;
 
-// Bắt đầu đếm từ 1s trở đi
-let interval = setInterval(() => {
-    seconds++;
-    timerEl.textContent = seconds + 's';
-
-    // Nếu quá 6s mà chưa load xong thì reload
-    if (seconds >= 6 && !reloaded) {
-        reloaded = true;
-        location.reload();
-    }
-}, 1000);
-
-// Khi toàn bộ trang load xong
-window.addEventListener('load', () => {
-    clearInterval(interval); // dừng đếm
+document.addEventListener('DOMContentLoaded', () => {
+    const timerEl = document.getElementById('loading-timer');
     const loadingBar = document.getElementById('loading-bar');
-    loadingBar.classList.add('hide'); // ẩn khung
-    setTimeout(() => loadingBar.remove(), 500); // xóa node
+    let seconds = 0;
+    let reloaded = false;
+
+    // Hiển thị loading ngay
+    if (loadingBar) loadingBar.style.display = 'block';
+    if (timerEl) timerEl.textContent = '0s';
+
+    // Bắt đầu timer
+    const interval = setInterval(() => {
+        seconds++;
+        if(timerEl) timerEl.textContent = seconds + 's';
+
+        if (seconds >= 6 && !reloaded) {
+            reloaded = true;
+            location.reload();
+        }
+    }, 1000);
+
+    // Khi toàn bộ trang load xong
+    window.addEventListener('load', () => {
+        clearInterval(interval); // dừng timer
+        if (loadingBar) {
+            setTimeout(() => {
+                loadingBar.style.transition = 'opacity 0.5s';
+                loadingBar.style.opacity = '0';
+                setTimeout(() => loadingBar.remove(), 500);
+            }, 1000); // giữ 1s trước khi ẩn
+        }
+    });
 });
 
 
@@ -1235,6 +1314,29 @@ document.addEventListener("DOMContentLoaded", () => {
   startWatching(title, url);
 });
 window.addEventListener("beforeunload", endWatching);
+
+const title = document.getElementById('player-title');
+const toggleBtn = document.getElementById('toggle-title-btn');
+
+// Nếu tiêu đề dài hơn 3 dòng, hiển thị nút "Xem thêm"
+window.addEventListener('load', () => {
+  if (title.scrollHeight > title.clientHeight) {
+    toggleBtn.style.display = 'inline-block';
+  }
+});
+
+toggleBtn.addEventListener('click', () => {
+  title.classList.toggle('expanded');
+  toggleBtn.textContent = title.classList.contains('expanded') ? 'Thu gọn' : 'Xem thêm';
+});
+
+  document.addEventListener("visibilitychange", function() {
+    if (!document.hidden) {
+      // khi quay lại tab thì reset zoom
+      document.body.style.zoom = "1.0";
+    }
+  });
+
   </script>
 </body>
 </html>
