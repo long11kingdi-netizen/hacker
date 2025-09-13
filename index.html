@@ -1392,12 +1392,17 @@ body.player-open #mainContent {
             </div>
         </div>
 
-
-<script src="js/cosplay.js"></script>
+<script src="cosplay.js"></script>
+<script src="bigass.js"></script>
+<script src="blowjob.js"></script>
+<script src="bigtits.js"></script>
+<script src="คลิปหลุดไทย.js"></script>
+<script src="คาชุดนักศึกษา.js"></script>
+<script src="thai.js"></script>
 
 <!-- Sau đó là đoạn xử lý chính -->
 <script>
-  const videos = [ ...cosplay, ]; // 👈 đúng thứ tự mong muốn
+  const videos = [ ...คลิปหลุดไทย, ...คาชุดนักศึกษา, ...thai,]; // 👈 đúng thứ tự mong muốn
   const ITEMS_PER_PAGE = 25;
   let currentPage = 1;
   let currentFiltered = [...videos].reverse(); // ✅ đảo ngược để mới lên đầu
@@ -2127,7 +2132,7 @@ function renderPagination(current, total) {
     }
   }
 
-  for (let i = current - 3; i <= current + 3; i++) {
+  for (let i = current - 6; i <= current + 6; i++) {
     if (i > 0 && i <= total) {
       if (i === current) {
         html += `<li><a class="active" href="${buildPageLink(i)}">${formatNumber(i)}</a></li>`;
@@ -2682,8 +2687,4 @@ document.addEventListener('DOMContentLoaded', () => {
   });
     </script>
 </body>
-
 </html>
-
-
-
